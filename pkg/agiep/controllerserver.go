@@ -22,14 +22,13 @@ import (
 	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 
-	csicommon "github.com/spdk/spdk-csi/pkg/csi-common"
+	csicommon "github.com/lijhnihaoa/spdk-csi/pkg/csi-common"
 	//"github.com/spdk/spdk-csi/pkg/util"
-	util "github.com/lijhnihaoa/spdk/spdk-csi/pkg/utill"
+	util "github.com/lijhnihaoa/spdk-csi/pkg/utill"
 )
 
 var errVolumeInCreation = status.Error(codes.Internal, "volume in creation")
@@ -72,7 +71,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// 	return nil, errVolumeInUsed
 			// }
 			// // another task has successfully processed same request
-			// volume := cs.volumes[volumeID]
+			volume := cs.volumes[volumeID]
 			klog.Warningf("volume exists: %s, %p", req.Name, volume)
 			return nil, nil
 		}
@@ -191,86 +190,92 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	lvolID := req.GetSourceVolumeId()
-	snapshotName := req.GetName()
+	// lvolID := req.GetSourceVolumeId()
+	// snapshotName := req.GetName()
 
-	cs.mtx.Lock()
-	volume, exists := cs.volumes[lvolID]
-	cs.mtx.Unlock()
-	if !exists {
-		klog.Warningf("volume does not exist: %s", lvolID)
-		return &csi.CreateSnapshotResponse{}, status.Error(codes.Internal, "snapshot source volume does not exist")
-	}
+	// cs.mtx.Lock()
+	// volume, exists := cs.volumes[lvolID]
+	// cs.mtx.Unlock()
+	// if !exists {
+	// 	klog.Warningf("volume does not exist: %s", lvolID)
+	// 	return &csi.CreateSnapshotResponse{}, status.Error(codes.Internal, "snapshot source volume does not exist")
+	// }
 
-	cs.mtxSnapshot.RLock()
-	if exSnap, ok := cs.snapshotsIdem[snapshotName]; ok {
-		cs.mtxSnapshot.RUnlock()
-		if exSnap.SourceVolumeId == lvolID {
-			return &csi.CreateSnapshotResponse{
-				Snapshot: &exSnap,
-			}, nil
-		}
-		return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exists", snapshotName)
-	}
-	cs.mtxSnapshot.RUnlock()
+	// cs.mtxSnapshot.RLock()
+	// if exSnap, ok := cs.snapshotsIdem[snapshotName]; ok {
+	// 	cs.mtxSnapshot.RUnlock()
+	// 	if exSnap.SourceVolumeId == lvolID {
+	// 		return &csi.CreateSnapshotResponse{
+	// 			Snapshot: &exSnap,
+	// 		}, nil
+	// 	}
+	// 	return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exists", snapshotName)
+	// }
+	// cs.mtxSnapshot.RUnlock()
 
-	snapshotID, err := volume.spdkNode.CreateSnapshot(lvolID, snapshotName)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	// snapshotID, err := volume.spdkNode.CreateSnapshot(lvolID, snapshotName)
+	// if err != nil {
+	// 	return nil, status.Error(codes.Internal, err.Error())
+	// }
 
-	creationTime := ptypes.TimestampNow()
-	snapshotData := csi.Snapshot{
-		SizeBytes:      volume.csiVolume.GetCapacityBytes(),
-		SnapshotId:     snapshotID,
-		SourceVolumeId: lvolID,
-		CreationTime:   creationTime,
-		ReadyToUse:     true,
-	}
+	// creationTime := ptypes.TimestampNow()
+	// snapshotData := csi.Snapshot{
+	// 	SizeBytes:      volume.csiVolume.GetCapacityBytes(),
+	// 	SnapshotId:     snapshotID,
+	// 	SourceVolumeId: lvolID,
+	// 	CreationTime:   creationTime,
+	// 	ReadyToUse:     true,
+	// }
 
-	cs.mtxSnapshot.Lock()
-	cs.snapshotsIdem[snapshotID] = snapshotData
-	cs.mtxSnapshot.Unlock()
+	// cs.mtxSnapshot.Lock()
+	// cs.snapshotsIdem[snapshotID] = snapshotData
+	// cs.mtxSnapshot.Unlock()
 
-	return &csi.CreateSnapshotResponse{
-		Snapshot: &snapshotData,
-	}, nil
+	// return &csi.CreateSnapshotResponse{
+	// 	Snapshot: &snapshotData,
+	// }, nil
+	return nil, nil
 }
 
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	snapshotID := req.SnapshotId
-	cs.mtxSnapshot.RLock()
-	exSnap, exists := cs.snapshotsIdem[snapshotID]
-	cs.mtxSnapshot.RUnlock()
-	if !exists {
-		klog.Warningf("snapshot does not exist: %s", snapshotID)
-		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, "snapshot does not exist")
-	}
+	// 	snapshotID := req.SnapshotId
+	// 	cs.mtxSnapshot.RLock()
+	// 	exSnap, exists := cs.snapshotsIdem[snapshotID]
+	// 	cs.mtxSnapshot.RUnlock()
+	// 	if !exists {
+	// 		klog.Warningf("snapshot does not exist: %s", snapshotID)
+	// 		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, "snapshot does not exist")
+	// 	}
 
-	sourceVolumeID := exSnap.SourceVolumeId
-	cs.mtx.Lock()
-	volume, exists := cs.volumes[sourceVolumeID]
-	cs.mtx.Unlock()
-	if !exists {
-		klog.Warningf("sourceVolume does not exist: %s", sourceVolumeID)
-		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, "snapshot source volume does not exist")
-	}
+	// 	sourceVolumeID := exSnap.SourceVolumeId
+	// 	cs.mtx.Lock()
+	// 	volume, exists := cs.volumes[sourceVolumeID]
+	// 	cs.mtx.Unlock()
+	// 	if !exists {
+	// 		klog.Warningf("sourceVolume does not exist: %s", sourceVolumeID)
+	// 		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, "snapshot source volume does not exist")
+	// 	}
 
-	err := volume.spdkNode.DeleteVolume(snapshotID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	// 	err := volume.spdkNode.DeleteVolume(snapshotID)
+	// 	if err != nil {
+	// 		return nil, status.Error(codes.Internal, err.Error())
+	// 	}
 
-	cs.mtxSnapshot.Lock()
-	delete(cs.snapshotsIdem, snapshotID)
-	cs.mtxSnapshot.Unlock()
+	// 	cs.mtxSnapshot.Lock()
+	// 	delete(cs.snapshotsIdem, snapshotID)
+	// 	cs.mtxSnapshot.Unlock()
 
-	return &csi.DeleteSnapshotResponse{}, nil
+	// 	return &csi.DeleteSnapshotResponse{}, nil
+	return nil, nil
+}
+
+func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, nil
 }
 
 // 创建磁盘
 func (cs *controllerServer) createVolume(req *csi.CreateVolumeRequest) (*volume, error) {
-	size := req.GetCapacityRange().GetRequiredBytes()	//获取创建磁盘的大小 B
+	size := req.GetCapacityRange().GetRequiredBytes() //获取创建磁盘的大小 B
 	if size == 0 {
 		klog.Warningln("invalid volume size, resize to 1G")
 		size = 1024 * 1024 * 1024
@@ -278,18 +283,13 @@ func (cs *controllerServer) createVolume(req *csi.CreateVolumeRequest) (*volume,
 	sizeMiB := util.ToMiB(size)
 
 	spdkNode := cs.spdkNodes[0] // 获取SPDK节点
-	if err != nil {
-		return nil, err
-	}
 
 	// TODO: re-schedule on ErrJSONNoSpaceLeft per optimistic concurrency control
-	volumeID, err := spdkNode.CreateVolume(req.name, sizeMiB)
+	volumeID, err := spdkNode.CreateVolume(req.Name, sizeMiB)
 	if err != nil {
 		return nil, err
 	}
-	if spdkNode.controllerDiskName == ""{
-		spdkNode.CreateController(nil)
-	}
+	spdkNode.CreateController("")
 
 	return &volume{
 		name:     req.Name,
@@ -301,6 +301,7 @@ func (cs *controllerServer) createVolume(req *csi.CreateVolumeRequest) (*volume,
 			ContentSource: req.GetVolumeContentSource(),
 		},
 	}, nil
+
 }
 
 func publishVolume(volume *volume) (map[string]string, error) {

@@ -18,12 +18,13 @@ package utill
 
 import (
 	"fmt"
-	"strings"
+	// "strings"
 	"sync"
-	"sync/atomic"
+	// "sync/atomic"
 
 	"k8s.io/klog"
 )
+
 const invalidNSID = 0
 
 type nodeDisk struct {
@@ -34,13 +35,13 @@ type nodeDisk struct {
 	targetPort   string
 	transCreated int32
 
-	ldisks map[string]*lvDisk
+	ldisks             map[string]*lvDisk
 	controllerDiskName string
-	mtx   sync.Mutex // for concurrent access to ldisks map
+	mtx                sync.Mutex // for concurrent access to ldisks map
 }
 
 type lvDisk struct {
-	diskName	string
+	diskName string
 }
 
 func (ldisk *lvDisk) reset() {
@@ -51,7 +52,7 @@ func newDisk(client *rpcClient, targetType, targetAddr string) *nodeDisk {
 		client:     client,
 		targetType: targetType,
 		targetAddr: targetAddr,
-		ldisks:      make(map[string]*lvDisk),
+		ldisks:     make(map[string]*lvDisk),
 	}
 }
 
@@ -64,18 +65,18 @@ func (node *nodeDisk) VolumeInfo(ldiskID string) (map[string]string, error) {
 		return nil, fmt.Errorf("volume not exists: %s", ldiskID)
 	}
 
-	return map[string]string {
-		"diskName":	ldisk.diskName,
+	return map[string]string{
+		"diskName": ldisk.diskName,
 	}, nil
 }
 
 //rpc.py agiep_create_nvme_controller agiep_nvme0 1 0 7 --cpumask=0xfe0
-func(node *nodeDisk)CreateController(controllerName string)(string, error){
-	
+func (node *nodeDisk) CreateController(controllerName string) (string, error) {
+
 	if node.controllerDiskName == "agiep_nvme0" {
 		return node.controllerDiskName, nil
 	}
-	
+
 	controllerID, err := node.client.createController("agiep_nvme0")
 	if err != nil {
 		return "", err
@@ -85,7 +86,7 @@ func(node *nodeDisk)CreateController(controllerName string)(string, error){
 	return controllerID, nil
 }
 
-func (node *nodeDisk)DeleteController(controllerName string) error{
+func (node *nodeDisk) DeleteController(controllerName string) error {
 	if node.controllerDiskName == "" {
 		return fmt.Errorf("controllerDiskName not exists!")
 	}
@@ -101,6 +102,7 @@ func (node *nodeDisk)DeleteController(controllerName string) error{
 	klog.V(5).Infof("controllerDiskName deleted: %s", node.controllerDiskName)
 	return nil
 }
+
 // CreateVolume creates a logical disk and returns disk ID
 func (node *nodeDisk) CreateVolume(diskName string, sizeMiB int64) (string, error) {
 	ldiskID, err := node.client.createVolume(diskName, sizeMiB)
@@ -122,7 +124,7 @@ func (node *nodeDisk) CreateVolume(diskName string, sizeMiB int64) (string, erro
 }
 
 func (node *nodeDisk) DeleteVolume(ldiskID string) error {
-	lvdisk, exist:= node.ldisks[ldiskID]
+	lvdisk, exist := node.ldisks[ldiskID]
 	if !exist {
 		return fmt.Errorf("disk ID not exists: %s", ldiskID)
 	}
@@ -143,7 +145,7 @@ func (node *nodeDisk) DeleteVolume(ldiskID string) error {
 // add ns PublishVolume export disk
 func (node *nodeDisk) PublishVolume(ldiskID string) error {
 	var err error
-	lvdisk, exist:= node.ldisks[ldiskID]
+	lvdisk, exist := node.ldisks[ldiskID]
 	if !exist {
 		return fmt.Errorf("disk ID not exists: %s", ldiskID)
 	}
@@ -162,7 +164,7 @@ func (node *nodeDisk) PublishVolume(ldiskID string) error {
 // del ns PublishVolume export disk
 func (node *nodeDisk) UnpublishVolume(ldiskID string) error {
 	var err error
-	lvdisk, exist:= node.ldisks[ldiskID]
+	lvdisk, exist := node.ldisks[ldiskID]
 	if !exist {
 		return fmt.Errorf("disk ID not exists: %s", ldiskID)
 	}
@@ -176,5 +178,3 @@ func (node *nodeDisk) UnpublishVolume(ldiskID string) error {
 
 	return nil
 }
-
-

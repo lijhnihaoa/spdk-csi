@@ -19,8 +19,11 @@ package agiep
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -29,8 +32,8 @@ import (
 	"k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
-	csicommon "github.com/spdk/spdk-csi/pkg/csi-common"
-	util "github.com/lijhnihaoa/spdk/spdk-csi/pkg/utill"
+	csicommon "github.com/lijhnihaoa/spdk-csi/pkg/csi-common"
+	util "github.com/lijhnihaoa/spdk-csi/pkg/utill"
 )
 
 type nodeServer struct {
@@ -41,7 +44,7 @@ type nodeServer struct {
 }
 
 type nodeVolume struct {
-	diskName	string
+	diskName    string
 	stagingPath string
 	tryLock     util.TryLock
 }
@@ -63,11 +66,8 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		volume, exists := ns.volumes[volumeID]
 		if !exists {
 			volumeContext := req.GetVolumeContext()
-			if err != nil {
-				return nil, err
-			}
 			volume = &nodeVolume{
-				diskName:   volumeContext[volumeID],
+				diskName:    volumeContext[volumeID],
 				stagingPath: "",
 			}
 			ns.volumes[volumeID] = volume
@@ -90,11 +90,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		deviceGlob := fmt.Sprintf("/dev/%s", volume.diskName)
 		devicePath, err := waitForDeviceReady(deviceGlob, 20)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		stagingPath, err := ns.stageVolume(devicePath, req) // idempotent
 		if err != nil {
-			deviceGlob := fmt.Sprintf("/dev/%s", volume.diskName)			 
+			deviceGlob := fmt.Sprintf("/dev/%s", volume.diskName)
 			waitForDeviceGone(deviceGlob, 20)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -126,7 +126,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				return status.Errorf(codes.Internal, "unstage volume %s failed: %s", volumeID, err)
 			}
 
-			deviceGlob := fmt.Sprintf("/dev/%s", volume.diskName)			 
+			deviceGlob := fmt.Sprintf("/dev/%s", volume.diskName)
 			err = waitForDeviceGone(deviceGlob, 20)
 			if err != nil {
 				return status.Error(codes.Internal, err.Error())
@@ -315,4 +315,3 @@ func waitForDeviceGone(deviceGlob string, seconds int) error {
 	}
 	return fmt.Errorf("timed out waiting device gone: %s", deviceGlob)
 }
-

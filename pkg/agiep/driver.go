@@ -14,16 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package spdk
+package agiep
 
 import (
-	
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/klog"
 
-	csicommon "github.com/spdk/spdk-csi/pkg/csi-common"
+	csicommon "github.com/lijhnihaoa/spdk-csi/pkg/csi-common"
 	// "github.com/spdk/spdk-csi/pkg/util"
-	util "github.com/lijhnihaoa/spdk/spdk-csi/pkg/utill"
+	util "github.com/lijhnihaoa/spdk-csi/pkg/utill"
 )
 
 func Run(conf *util.Config) {
@@ -48,7 +47,7 @@ func Run(conf *util.Config) {
 	}
 	if conf.IsControllerServer {
 		cd.AddControllerServiceCapabilities(controllerCaps) // 添加控制端的能力
-		cd.AddVolumeCapabilityAccessModes(volumeModes)	//添加对存储卷的操作能力  writer/readr
+		cd.AddVolumeCapabilityAccessModes(volumeModes)      //添加对存储卷的操作能力  writer/readr
 	}
 
 	ids = newIdentityServer(cd) // 新建身份服务
@@ -59,7 +58,7 @@ func Run(conf *util.Config) {
 
 	if conf.IsControllerServer {
 		var err error
-		cs, err = newControllerServer(cd)	// 创建控制服务 创建卷map 卷id map 快照map
+		cs, err = newControllerServer(cd) // 创建控制服务 创建卷map 卷id map 快照map
 		if err != nil {
 			klog.Fatalf("failed to create controller server: %s", err)
 		}
